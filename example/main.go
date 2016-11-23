@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 
-	"github.com/jasonmoo/lambda_proc"
+	"github.com/fenderdigital/lambda_proc"
 )
 
 func main() {
