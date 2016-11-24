@@ -16,7 +16,7 @@ type (
 		AwsRequestID             string `json:"awsRequestId"`
 		FunctionName             string `json:"functionName"`
 		FunctionVersion          string `json:"functionVersion"`
-		Invokeid                 string `json:"invokeid"`
+		InvokeID                 string `json:"invokeid"`
 		IsDefaultFunctionVersion bool   `json:"isDefaultFunctionVersion"`
 		LogGroupName             string `json:"logGroupName"`
 		LogStreamName            string `json:"logStreamName"`
