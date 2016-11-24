@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type (
@@ -20,6 +21,7 @@ type (
 		LogGroupName             string `json:"logGroupName"`
 		LogStreamName            string `json:"logStreamName"`
 		MemoryLimitInMB          string `json:"memoryLimitInMB"`
+		EventCounter             int    `json:"-"`
 	}
 
 	Payload struct {
@@ -30,36 +32,20 @@ type (
 		Context *Context `json:"context"`
 	}
 
-	Response struct {
-		// Request id is an incremental integer
-		// representing the request that has been
-		// received by this go proc during it's
-		// lifetime
-		RequestId int `json:"proc_req_id"`
+	ErrorResponse struct {
 		// Any errors that occur during processing
 		// or are returned by handlers are returned
-		Error *string `json:"error"`
-		// General purpose output data
-		Data interface{} `json:"data"`
+		Error string `json:"error"`
 	}
 )
 
-var requestId int // process req id
-
-func NewErrorResponse(err error) *Response {
-	e := err.Error()
-	return &Response{
-		RequestId: requestId,
-		Error:     &e,
+func NewErrorResponse(err error) *ErrorResponse {
+	return &ErrorResponse{
+		Error: err.Error(),
 	}
 }
 
-func NewResponse(data interface{}) *Response {
-	return &Response{
-		RequestId: requestId,
-		Data:      data,
-	}
-}
+var eventCounter int // process event counter
 
 func Run(handler Handler) {
 	RunStream(handler, os.Stdin, os.Stdout)
@@ -70,7 +56,7 @@ func RunStream(handler Handler, Stdin io.Reader, Stdout io.Writer) {
 	stdin := json.NewDecoder(Stdin)
 	stdout := json.NewEncoder(Stdout)
 
-	for ; ; requestId++ {
+	for ; ; eventCounter++ {
 		if err := func() (err error) {
 			defer func() {
 				if e := recover(); e != nil {
@@ -81,17 +67,17 @@ func RunStream(handler Handler, Stdin io.Reader, Stdout io.Writer) {
 			if err := stdin.Decode(&payload); err != nil {
 				return err
 			}
+			payload.Context.EventCounter = eventCounter
 			data, err := handler(payload.Context, payload.Event)
 			if err != nil {
 				return err
 			}
-			return stdout.Encode(NewResponse(data))
+			return stdout.Encode(data)
 		}(); err != nil {
 			if encErr := stdout.Encode(NewErrorResponse(err)); encErr != nil {
 				// bad times
-				log.Println("Failed to encode err response!", encErr.Error())
+				logrus.Fatalf("Failed to encode err response!", encErr.Error())
 			}
 		}
 	}
-
 }
